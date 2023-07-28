@@ -11,7 +11,7 @@ const ETUSER = mongoose.model('ETUSER', {username: {type: String, required: true
 const ETEXCERCISE = mongoose.model('ETEXCERCISE', {
   description: {type: String, required: true},
   duration: {type: Number, required: true},
-  date: {type: Date, required: true},
+  date: {type: Date, required: true, default: new Date()},
   username: {type: String, required: true},
 })
 
@@ -44,12 +44,14 @@ app.get('/api/users', async function(req, res) {
 
 app.post('/api/users/:_id/exercises', async function(req, res) {
   const body = req?.body
-  const date = body?.date ? new Date(body?.date) : new Date()
+  const date = new Date(body?.date)?.getMonth() + 1 ? new Date(body.date) : new Date()
   const description = body?.description
   const duration = /^\d+$/.test(body?.duration) ? parseInt(body?.duration) : body?.duration
   const id = req.params?._id
+  console.log(id);
   try {
-    const user = await ETUSER.findOne({_id: id}, {__v: 0})
+    const user = await ETUSER.findOne({_id: id})
+    console.log(user, !!date, !!description, typeof(duration) === 'number');
     if(user && date && description && typeof(duration) === 'number') {
       const excercise = await ETEXCERCISE.create({date, description, duration, username: user.username})
       res.json({
@@ -71,19 +73,28 @@ app.get('/api/users/:_id/logs', async function(req, res) {
   const id = req.params?._id
   const q = req.query
   const limit = /^\d+$/.test(q?.limit)? parseInt(q?.limit) : 10000
-  const from = new Date(q?.from)?.getMonth() + 1 ? new Date(q?.from) : new Date(2020, 1, 1)
-  const to = new Date(q?.to)?.getMonth() + 1 ? new Date(q?.to) : new Date()
-  to.setDate(to.getDate() + 1)
+  const hasFrom = new Date(q?.from)?.getMonth() + 1
+  const hasTo = new Date(q?.to)?.getMonth() + 1
+  const from = hasFrom ? new Date(q?.from) : null
+  const to = hasTo ? new Date(q?.to) : null
+  hasTo && to.setDate(to.getDate() + 1)
 
   try {
     const user = await ETUSER.findOne({_id: id}, {__v: 0})
     if(user) {
+      const dateFilters = [{key: "$gte", value: from}, {key: "$lte", value: to}].reduce((acc, curr) => {
+        if(curr.value) {
+          if(acc["date"]) {
+            acc["date"][curr.key] = new Date(curr.value.toISOString())
+          } else {
+            acc["date"] = {[curr.key]: new Date(curr.value.toISOString())}
+          }
+        }
+        return acc
+      }, {})
       const excercise = await ETEXCERCISE.find({
         username: user.username, 
-        date: {
-          $gte: new Date(from.toISOString()),
-          $lte: new Date(to.toISOString())
-        }
+        ...dateFilters
       }, {username: 0, __v: 0, _id: 0}).limit(limit)
       const log = excercise.map(ex => ({
         description: ex.description,
@@ -100,6 +111,7 @@ app.get('/api/users/:_id/logs', async function(req, res) {
       res.json({error: "invalid user"})
     }
   } catch (error) {
+    console.log(error);
     res.json({error: "error fetching data"})
   }
 })
