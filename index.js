@@ -70,7 +70,7 @@ app.post('/api/users/:_id/exercises', async function(req, res) {
 app.get('/api/users/:_id/logs', async function(req, res) {
   const id = req.params?._id
   const q = req.query
-  const limit = q?.limit || 10000
+  const limit = /^\d+$/.test(q?.limit)? parseInt(q?.limit) : 10000
   const from = new Date(q?.from)?.getMonth() + 1 ? new Date(q?.from) : new Date(2020, 1, 1)
   const to = new Date(q?.to)?.getMonth() + 1 ? new Date(q?.to) : new Date()
   to.setDate(to.getDate() + 1)
