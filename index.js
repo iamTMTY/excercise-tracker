@@ -85,7 +85,7 @@ app.get('/api/users/:_id/logs', async function(req, res) {
           $lte: new Date(to.toISOString())
         }
       }, {username: 0, __v: 0, _id: 0}).limit(limit)
-      const logs = excercise.map(ex => ({
+      const log = excercise.map(ex => ({
         description: ex.description,
         duration: ex.duration, 
         date: new Date(ex.date).toDateString()
@@ -94,7 +94,7 @@ app.get('/api/users/:_id/logs', async function(req, res) {
         _id: user?._id,
         username: user?.username,
         count: excercise.length,
-        logs
+        log
       })
     } else {
       res.json({error: "invalid user"})
